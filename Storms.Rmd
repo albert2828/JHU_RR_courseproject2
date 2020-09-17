@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+author: "Alberto Macías"
+date: "9/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+## Loading and processing the data
+
+The data is downloaded from [this link]("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2")
+
+```{r, cache=TRUE}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(url, destfile = "data_storm.csv.bz2")
+storm <- read.csv("data_storm.csv", header = T, na.strings = "")
+```
+
+If we observe at the structure of the dataset, we can see that it is necessary to convert some types of data:
+
+```{r}
+str(storm)
+```
+
+So, we convert BGN_DATE and END_DATE columns to date type data. And we eliminate some columns that will be not needed for the analysis. Since the purpose of this analysis is to evaluate dame in recent years, we subset the data since the year 2000.
+
+```{r}
+library(dplyr)
+storm$BGN_DATE <- as.Date(storm$BGN_DATE, format = "%m/%d/%Y")
+storm$END_DATE <- as.Date(storm$END_DATE, format = "%m/%d/%Y")
+stormdata <- select(storm, -c("BGN_RANGE", "BGN_AZI", "BGN_LOCATI" , "COUNTY_END", "COUNTYENDN", "END_RANGE", "END_AZI", "END_LOCATI", "WFO", "STATEOFFIC", "ZONENAMES", "LATITUDE", "LONGITUDE", "LATITUDE_E", "LONGITUDE_", "REMARKS", "REFNUM" ))
+stormdata <- filter(stormdata, stormdata$BGN_DATE >= "2005-01-01")
+```
+
+The following step to clean the data is to fix the PROPDMG and CROPDMG columns so all values are in the same units. PROPDAMGEXP and CROPDMGEXP have values "K", "M" and "B" which correspond to  thousand, millions, billions of dollars and also have values NA or "0" that indicates that there were not damages at that event. We will let units in millions of dollars.
+
+```{r}
+stormdata$PROPDMGEXP <- sub("K", ".001", stormdata$PROPDMGEXP)
+stormdata$PROPDMGEXP <- sub("M", "1", stormdata$PROPDMGEXP)
+stormdata$PROPDMGEXP <- sub("B", "1000", stormdata$PROPDMGEXP)
+stormdata$PROPDMGEXP[is.na(stormdata$PROPDMGEXP)] <- "0"
+stormdata$PROPDMGEXP <- as.numeric(stormdata$PROPDMGEXP)
+stormdata$PROPDMG <- stormdata$PROPDMG * stormdata$PROPDMGEXP
+
+stormdata$CROPDMGEXP <- sub("K", ".001", stormdata$CROPDMGEXP)
+stormdata$CROPDMGEXP <- sub("M", "1", stormdata$CROPDMGEXP)
+stormdata$CROPDMGEXP <- sub("B", "1000", stormdata$CROPDMGEXP)
+stormdata$CROPDMGEXP[is.na(stormdata$CROPDMGEXP)] <- "0"
+stormdata$CROPDMGEXP <- as.numeric(stormdata$CROPDMGEXP)
+stormdata$CROPDMG <- stormdata$CROPDMG * stormdata$CROPDMGEXP
+
+stormdata <- select(stormdata, -c(PROPDMGEXP,CROPDMGEXP))
+```
+
+
+
