@@ -1,6 +1,6 @@
 ---
-title: "Untitled"
-author: "Alberto Macías"
+title: "Analysis of Monetary Damage and Population Damage from wheather events: 2001 - 2011"
+author: "Luis Alberto Macías Barrales"
 date: "9/15/2020"
 output: html_document
 ---
@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Synopsis
+In the current analysis we study the monetary damage and population damage produced from weather disasters in the USA across the years 2001 to 2011. We use data from the National Oceanic and Atmospheric Administration's (NOAA) storm database. In the first section it is presented the methods to clean and organize the data. In the second section, the analysis is performed in order to study the most harmful type of events across these years. This analysis is divided into monetary damage and population damage, both divided into the most harmful events and the most affected states. In the last setion the results are presented.
+
 
 ## Loading and processing the data
 
@@ -27,17 +29,17 @@ If we observe at the structure of the dataset, we can see that it is necessary t
 str(storm)
 ```
 
-So, we convert BGN_DATE and END_DATE columns to date type data. And we eliminate some columns that will be not needed for the analysis. Since the purpose of this analysis is to evaluate dame in recent years, we subset the data since the year 2000.
+So, we convert BGN_DATE and END_DATE columns to date type data. And we eliminate some columns that will be not needed for the analysis. Since the purpose of this analysis is to evaluate damage in recent years, we subset the data since the year 2000.
 
 ```{r}
 library(dplyr)
 storm$BGN_DATE <- as.Date(storm$BGN_DATE, format = "%m/%d/%Y")
 storm$END_DATE <- as.Date(storm$END_DATE, format = "%m/%d/%Y")
 stormdata <- select(storm, -c("BGN_RANGE", "BGN_AZI", "BGN_LOCATI" , "COUNTY_END", "COUNTYENDN", "END_RANGE", "END_AZI", "END_LOCATI", "WFO", "STATEOFFIC", "ZONENAMES", "LATITUDE", "LONGITUDE", "LATITUDE_E", "LONGITUDE_", "REMARKS", "REFNUM" ))
-stormdata <- filter(stormdata, stormdata$BGN_DATE >= "2005-01-01")
+stormdata <- filter(stormdata, stormdata$BGN_DATE >= "2001-01-01")
 ```
 
-The following step to clean the data is to fix the PROPDMG and CROPDMG columns so all values are in the same units. PROPDAMGEXP and CROPDMGEXP have values "K", "M" and "B" which correspond to  thousand, millions, billions of dollars and also have values NA or "0" that indicates that there were not damages at that event. We will let units in millions of dollars.
+The following step to clean the data is to fix the PROPDMG and CROPDMG columns so all values are in the same units. PROPDAMGEXP and CROPDMGEXP have values "K", "M" and "B" which correspond to  thousand, millions, billions of dollars and also have values NA or "0" that indicates that there were not damages at that event. We will set units in millions of dollars.
 
 ```{r}
 stormdata$PROPDMGEXP <- sub("K", ".001", stormdata$PROPDMGEXP)
@@ -46,7 +48,6 @@ stormdata$PROPDMGEXP <- sub("B", "1000", stormdata$PROPDMGEXP)
 stormdata$PROPDMGEXP[is.na(stormdata$PROPDMGEXP)] <- "0"
 stormdata$PROPDMGEXP <- as.numeric(stormdata$PROPDMGEXP)
 stormdata$PROPDMG <- stormdata$PROPDMG * stormdata$PROPDMGEXP
-
 stormdata$CROPDMGEXP <- sub("K", ".001", stormdata$CROPDMGEXP)
 stormdata$CROPDMGEXP <- sub("M", "1", stormdata$CROPDMGEXP)
 stormdata$CROPDMGEXP <- sub("B", "1000", stormdata$CROPDMGEXP)
@@ -57,5 +58,107 @@ stormdata$CROPDMG <- stormdata$CROPDMG * stormdata$CROPDMGEXP
 stormdata <- select(stormdata, -c(PROPDMGEXP,CROPDMGEXP))
 ```
 
+The last step of data cleaning, and the most challenging one, is to correct typos of types of events. According to [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), there are 48 different types of events and in this subset of data there are 169 different types. There is one observation that is marked as others, so we first eliminate this since probably is not significant. Next, we proceed to match some event types by hand before we can use some more elegant methods.
+
+```{r}
+stormdata <- filter(stormdata, !(stormdata$EVTYPE=="OTHER"))
+
+stormdata$EVTYPE <- sub("   ", "",stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("BRUSH FIRE", "WILDFIRE", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub(" WATERSPOUT", "WATERSPOUT", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("BLOWING DUST", "DUST STORM", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("COLD WEATHER", "COLD/WIND CHILL", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("COLD WIND CHILL TEMPERATURES", "COLD/WIND CHILL", stormdata$EVTYPE)
+stormdata$EVTYPE[stormdata$EVTYPE == "COLD"] <- "COLD/WIND CHILL"
+stormdata$EVTYPE <- sub("COASTAL FLOODING", "COASTAL FLOOD", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("COASTAL FLOODING", "COASTAL FLOOD", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("CSTL FLOODING/EROSION", "COASTAL FLOOD", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("RECORD HEAT", "EXCESSIVE HEAT", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("RECORD COLD", "EXCESSIVE COLD/ WIND CHILL", stormdata$EVTYPE)
+stormdata$EVTYPE <- sub("FOG", "DENSE FOG", stormdata$EVTYPE)
+```
+Next, we use "amatch" function from stringdist package to match events in stormdata data set with official events. And we eliminate entries where amatch function indicates NA.
+
+```{r}
+library(stringdist)
+events <- c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold/Wind Chill", "Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm", "Excessive Heat", "Extreme Cold/Wind Chill", "Flash Flood", "Flood", "Frost/Freeze", "Funnel Cloud", "Freezing Fog", "Hail", "Heat", "Heavy Rain", "Heavy Snow", "High Surf", "High Wind", "Hurricane (Typhoon)", "Ice Storm", "Lake-Effect Snow", "Lakeshore Flood", "Lightning", "Marine Hail", "Marine High Wind", "Marine Strong Wind", "Marine Thunderstorm Wind", "Rip Current", "Seiche", "Sleet", "Storm Surge/Tide", "Strong Wind", "Thunderstorm Wind", "Tornado", "Tropical Depression", "Tropical Storm", "Tsunami", "Volcanic Ash", "Waterspout", "Wildfire", "Winter Storm", "Winter Weather")
+events <- toupper(events)
+stormdata$match <- amatch(stormdata$EVTYPE, events, method = "jw", maxDist = 0.3)
+stormdata <- filter(stormdata, !is.na(stormdata$match))
+for (i in 1:48){
+            stormdata$EVTYPE[stormdata$match==i] <- events[i]
+}
+```
+
+## Analysis
+
+### Damage per type of event
+
+First, we evaluate the mean of the monetary and population damage per type of event and take the ten most harmful of them
+```{r}
+storm_mean <- stormdata %>% group_by(EVTYPE) %>%
+            summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(PROPDMG+CROPDMG), mean_fat = mean(FATALITIES), mean_inj = mean(INJURIES))
+top_monetary <- arrange(storm_mean[,c("EVTYPE", "mean_prop", "mean_crop", "mean_total")], desc(storm_mean$mean_total))[1:10,]
+top_population <- arrange(storm_mean[,c("EVTYPE", "mean_fat", "mean_inj")], desc(storm_mean$mean_fat))[1:10,]
+top_monetary
+top_population
+```
+From these tables, we can see that in average, the event that has the more monetary impact across all USA are hurricanes/typhons, with and average of $566.92 millions of dollar per event. On the other hand, the event that has the major number of casualties in average are tsunamis, with 1.66 casualties each time.
+
+Now, we count the total damage per type of event
+
+```{r}
+total_fat <- sapply(split(stormdata[,c("EVTYPE", "FATALITIES")], stormdata$EVTYPE), function(x){sum(x[,2])})
+total_inj <- sapply(split(stormdata[,c("EVTYPE", "INJURIES")], stormdata$EVTYPE), function(x){sum(x[,2])})
+
+total_prop <-  sapply(split(stormdata[,c("EVTYPE", "PROPDMG")], stormdata$EVTYPE), function(x){sum(x[,2])})
+total_crop <-  sapply(split(stormdata[,c("EVTYPE", "CROPDMG")], stormdata$EVTYPE), function(x){sum(x[,2])})
+
+stormdata$totaldmg <- stormdata$PROPDMG+stormdata$CROPDMG
+total_total <-   sapply(split(stormdata[,c("EVTYPE", "totaldmg")], stormdata$EVTYPE), function(x){sum(x[,2])})
+
+total_mon <- data.frame(total_prop, total_crop, total_total)
+total_pop <- data.frame(total_fat, total_inj)
+
+total_mon <- arrange(total_mon, desc(total_total))[1:10,]
+total_pop <- arrange(total_pop, desc(total_fat))[1:10,]
+
+total_mon 
+total_pop
+
+```
+
+From these tables, we see that in general, floods had caused the most economical damage, with a total of \$137583.727 millions of dollars, followed by hurricanes (typhoons), storms (tides) and tornadoes, with \$75400.178, \$47811.813 and \$47811.813 millions of dollars, respectively. On the other hand, the events that affect the most to the population are tornadoes, excessive heat, flash floods, rip currents, each causing a total of 1152, 856, 573 and 433 casualties, respectively and 14331, 3242, 780 and 366 injuries.	
+
+### Damage per state
+
+In the current section we evaluate which are the states more affected by this events. We focus on tornadoes, hurricanes, storms, and floods for the economic impact and tornadoes, excessive heat, flash floods and rip currents for the population impact. 
+
+```{r}
+tornado_mon <- stormdata %>%  filter(stormdata$EVTYPE == "TORNADO")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
+            arrange(desc(tornado_mon$mean_total))
+tornado_mon[1:10,]
+
+hurricane_mon <- stormdata %>%  filter(stormdata$EVTYPE == "HURRICANE (TYPHOON)")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
+            arrange(desc(hurricane_mon$mean_total))
+hurricane_mon[1:10,]
+
+storm_mon <- stormdata %>%  filter(stormdata$EVTYPE == "STORM SURGE/TIDE")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
+            arrange(desc(mean_total))
+storm_mon[1:10,]
+
+flood_mon <- stormdata %>%  filter(stormdata$EVTYPE == "FLOOD")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
+            arrange(desc(mean_total))
+flood_mon[1:10,]
+```
 
 
+## Results
