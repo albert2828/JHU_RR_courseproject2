@@ -90,7 +90,7 @@ for (i in 1:48){
 }
 ```
 
-## Analysis
+## Results
 
 ### Damage per type of event
 
@@ -138,13 +138,13 @@ In the current section we evaluate which are the states more affected by this ev
 tornado_mon <- stormdata %>%  filter(stormdata$EVTYPE == "TORNADO")  %>% 
             group_by(STATE) %>% 
             summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
-            arrange(desc(tornado_mon$mean_total))
+            arrange(desc(mean_total))
 tornado_mon[1:10,]
 
 hurricane_mon <- stormdata %>%  filter(stormdata$EVTYPE == "HURRICANE (TYPHOON)")  %>% 
             group_by(STATE) %>% 
             summarise(mean_prop = mean(PROPDMG), mean_crop = mean(CROPDMG), mean_total = mean(totaldmg)) %>% 
-            arrange(desc(hurricane_mon$mean_total))
+            arrange(desc(mean_total))
 hurricane_mon[1:10,]
 
 storm_mon <- stormdata %>%  filter(stormdata$EVTYPE == "STORM SURGE/TIDE")  %>% 
@@ -159,6 +159,54 @@ flood_mon <- stormdata %>%  filter(stormdata$EVTYPE == "FLOOD")  %>%
             arrange(desc(mean_total))
 flood_mon[1:10,]
 ```
+From the tables, we can see that the five most affected states by tornadoes are Massachusetts, Alabama, Missouri, Maryland and Mississippi. In the case of hurricanes are Mississippi, Louisiana, Florida, Alabama and Virginia. With respect to storm surge/tide are Louisiana, Massachusetts, Texas, Maryland and North Caroline. And Finally, by floods, the most affected states are California, Mississippi, Tennessee, Louisiana and Vermont. 
+
+```{r}
+par(mfrow = c(2,2))
+barplot(mean_total~STATE, data = tornado_mon[1:5,], xlab = "States", ylab = "Mean of economic impact in mod", main = "Tornado")
+barplot(mean_total~STATE, data = hurricane_mon[1:5,], xlab = "States", ylab = "", main = "Hurricane (Typhoon)")
+barplot(mean_total~STATE, data = storm_mon[1:5,], xlab = "States", ylab = "", main = "Storm surge/tide")
+barplot(mean_total~STATE, data = flood_mon[1:5,], xlab = "States", ylab = "", main = "Flood")
+```
+
+At last, we study the population impact
+
+```{r}
+tornado_pop <- stormdata %>%  filter(stormdata$EVTYPE == "TORNADO")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_fat = mean(FATALITIES), mean_inj = mean(INJURIES)) %>% 
+            arrange(desc(mean_fat))
+tornado_pop[1:10,]
+
+heat_pop <- stormdata %>%  filter(stormdata$EVTYPE == "EXCESSIVE HEAT")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_fat = mean(FATALITIES), mean_inj = mean(INJURIES)) %>% 
+            arrange(desc(mean_fat))
+heat_pop[1:10,]
+
+ff_pop <- stormdata %>%  filter(stormdata$EVTYPE == "FLASH FLOOD")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_fat = mean(FATALITIES), mean_inj = mean(INJURIES)) %>% 
+            arrange(desc(mean_fat))
+ff_pop[1:10,]
+
+rc_pop <- stormdata %>%  filter(stormdata$EVTYPE == "RIP CURRENT")  %>% 
+            group_by(STATE) %>% 
+            summarise(mean_fat = mean(FATALITIES), mean_inj = mean(INJURIES)) %>% 
+            arrange(desc(mean_fat))
+rc_pop[1:10,]
+```
+From the tables, we can see that the five most affected states by tornadoes are Alabama, Massachusetts, Tennessee and Missouri. In the case of excessive heat are New York, Arizona, Pennsylvania, Texas and Illinois. With respect to flash floods are American Samoa, Guam, Hawaii, Delaware, and Arizona. And Finally, by rip current, the most affected states are Connecticut, Puerto Rico, Indiana, New York and Texas. 
 
 
-## Results
+```{r}
+par(mfrow = c(2,2))
+barplot(mean_fat~STATE, data = tornado_pop[1:5,], xlab = "States", ylab = "Mean of casualties", main = "Tornado")
+barplot(mean_fat~STATE, data = heat_pop[1:5,], xlab = "States", ylab = "", main = "Excessive heat")
+barplot(mean_fat~STATE, data = ff_pop[1:5,], xlab = "States", ylab = "", main = "Flash flood")
+barplot(mean_fat~STATE, data = rc_pop[1:5,], xlab = "States", ylab = "", main = "Rip current")
+```
+
+## Conclusion
+
+From this analysis, we conclude that the weather events that have the major economic impact in proportion are tornadoes, hurricanes, storms, and floods and Mississippi is the most affected state, since is affected by this four events. On the other hand, the events that affect the most to the population are tornadoes, excessive heat, flash floods and rip currents and New York and Texas are affected by two of this events.
